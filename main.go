@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/dnlo/struct2csv"
 	"github.com/gorilla/mux"
@@ -157,7 +158,7 @@ func main() {
 	var err error
 	// mongodb config
 	mongodbConfig := new(mongodb.Config)
-	mongodbConfig.Address = "localhost:27017"
+	mongodbConfig.Address = os.Getenv("MONGODB_ADDRESS")
 	mongodbConfig.User = "root"
 	mongodbConfig.Password = "example"
 	mongodbConfig.Database = "test"
