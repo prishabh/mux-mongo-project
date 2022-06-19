@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"log"
 	"net/http"
 
+	"github.com/dnlo/struct2csv"
 	"github.com/gorilla/mux"
 	"github.com/prishabh/mux-mongo-project/libs/database/driver/mongodb"
 	"github.com/prishabh/mux-mongo-project/models"
@@ -110,11 +112,43 @@ func handleRead(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(response)
 }
 
+func handleDownload(rw http.ResponseWriter, r *http.Request) {
+	rw.Header().Set("Content-Disposition", "attachment")
+	filter := bson.D{}
+	var results []models.Data
+	if err := mongodbClient.Query(filter, &results); err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		response := responses.Response{
+			Status:  http.StatusInternalServerError,
+			Message: "error",
+			Data:    map[string]interface{}{"data": err.Error()},
+		}
+		json.NewEncoder(rw).Encode(response)
+		return
+	}
+	rw.WriteHeader(http.StatusOK)
+	b := &bytes.Buffer{}
+	w := struct2csv.NewWriter(b)
+	if err := w.WriteStructs(results); err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+		response := responses.Response{
+			Status:  http.StatusInternalServerError,
+			Message: "error",
+			Data:    map[string]interface{}{"data": err.Error()},
+		}
+		json.NewEncoder(rw).Encode(response)
+		return
+	}
+	response := string(b.Bytes())
+	json.NewEncoder(rw).Encode(response)
+}
+
 func initializeRouter() {
 	log.Print("Initializing routes")
 	r := mux.NewRouter()
 	r.HandleFunc("/", handleCreate).Methods("POST")
 	r.HandleFunc("/", handleRead).Methods("GET")
+	r.HandleFunc("/download", handleDownload).Methods("GET")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
